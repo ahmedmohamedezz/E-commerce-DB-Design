@@ -92,7 +92,7 @@ CREATE TABLE Order_details (
 ```sql
 SELECT SUM(total_amount) as total_revenue
 FROM Orders
-WHERE order_date = :date
+WHERE order_date = :date  -- we may use a range query
 ```
 
 > we may need to truncate the time if needed and use a range query instead of `TRUNC(order_date) = :date` (performace killer)
@@ -102,8 +102,10 @@ WHERE order_date = :date
 ```sql
 SELECT Product.name as top_selling_product
 FROM Order_details JOIN Product
-ON Order_details.product_id = Product.product_id
-WHERE EXTRACT(MONTH FROM order_date) = :month
+  ON Order_details.product_id = Product.product_id
+JOIN Orders
+  ON Order_details.order_id = Orders.order_id
+WHERE EXTRACT(MONTH FROM Orders.order_date) = :month
 GROUP BY Product.product_id
 ORDER BY SUM(Order_details.quantity) DESC
 LIMIT :limit
@@ -117,10 +119,11 @@ LIMIT :limit
 SELECT c.first_name, c.last_name, SUM(o.total_amount) as total_orders_amount
 FROM Customer c JOIN Orders o
 ON c.customer_id = o.customer_id
--- WHERE o.total_amount > 500 AND o.order_date > NOW() - INTERVAL '1 month'
-WHERE o.total_amount > 500 AND o.order_date 
+-- WHERE o.order_date > NOW() - INTERVAL '1 month'
+WHERE o.order_date 
   BETWEEN DATE_TRUNC('month', CURRENT_TIMESTAMP - INTERVAL '1 month') AND DATE_TRUNC('month', CURRENT_TIMESTAMP) -- OR this `where` based on query logic
 GROUP BY c.customer_id
+HAVING SUM(o.total_amount) > 500
 ```
 
 ## Questions
