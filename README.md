@@ -97,6 +97,8 @@ WHERE order_date = :date  -- we may use a range query
 
 > we may need to truncate the time if needed and use a range query instead of `TRUNC(order_date) = :date` (performace killer)
 
+---
+
 - generate a monthly report of the top-selling products in a given month
 
 ```sql
@@ -111,6 +113,8 @@ ORDER BY SUM(Order_details.quantity) DESC
 LIMIT :limit
 ```
 
+---
+
 - retrieve a list of customers who have placed orders totaling more than $500 in the past month
 
 - Include customer names and their total order amounts.
@@ -124,6 +128,46 @@ WHERE o.order_date
   BETWEEN DATE_TRUNC('month', CURRENT_TIMESTAMP - INTERVAL '1 month') AND DATE_TRUNC('month', CURRENT_TIMESTAMP) -- OR this `where` based on query logic
 GROUP BY c.customer_id
 HAVING SUM(o.total_amount) > 500
+```
+
+---
+
+- Write a SQL query to search for all **products** with the word "camera" in either the product name or description.
+
+> note that using `LIKE` operator is a bad practice as it's a performance killer, and prevent using indexes if any
+
+```sql
+SELECT product_id, name, description, price
+FROM Product
+WHERE name LIKE '%camera%' OR description LIKE '%camera%'
+```
+
+- other techniques maybe used as vector search (aka full-text search)
+  - may include word trimming, ...etc
+  - may build an inverted index to use instead of a full table scan
+
+- maybe postgreSQL is an exception having the GIN index support.
+
+---
+
+- design a query to suggest popular products in the same category for the same author, excluding the Purchsed product from the recommendations?
+
+```java
+-- sample code
+List<Product> suggestPopularProducts(Long vendorId, Long categoryId, Long productId);
+```
+
+```sql
+SELECT p.product_id, p.name
+FROM Product p JOIN Order_details od ON p.product_id = od.product_id
+    JOIN Orders o ON od.order_id = o.order_id
+WHERE
+    p.vendor_id = :vendor_id                    -- same author
+    AND p.category_id = :category_id            -- same category
+    AND p.product_id != :product_id             -- exclude the Purchsed product
+GROUP BY p.product_id, p.name
+HAVING COUNT(od.order_id) >= 1000               -- popular products criteria (sold at least a 1000 times)
+ORDER BY COUNT(od.order_id) DESC
 ```
 
 ## Questions
